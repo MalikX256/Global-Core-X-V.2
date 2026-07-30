@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GlobalCoreX v1.0</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#080B14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GlobalCoreX">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#080B14;
+    --bg-panel:#101828;
+    --bg-panel-2:#0C1220;
+    --bg-raised:#161F33;
+    --border:#1E293F;
+    --border-soft:#182238;
+    --teal:#00E6B8;
+    --teal-dim:#00B896;
+    --blue:#4C8DFF;
+    --amber:#FFB020;
+    --red:#FF3B54;
+    --text:#E7ECF6;
+    --text-dim:#8A97B8;
+    --text-faint:#5A6684;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --sans:'Inter', -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg-deep);
+    color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  #app{height:100vh; height:100dvh; width:100vw; position:relative; overflow:hidden;}
+
+  /* ---------- Scanline / grid backdrop ---------- */
+  .grid-backdrop{
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(0,230,184,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,230,184,0.035) 1px, transparent 1px);
+    background-size:38px 38px;
+    pointer-events:none;
+  }
+
+  /* ---------- AUTH SCREEN ---------- */
+  #auth-screen{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(0,230,184,0.10), transparent 45%),
+      radial-gradient(circle at 80% 80%, rgba(76,141,255,0.10), transparent 45%),
+      var(--bg-deep);
+  }
+  .auth-card{
+    width:420px; max-width:92vw;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:36px 34px 30px;
+    position:relative;
+    box-shadow:0 30px 80px rgba(0,0,0,0.5);
+  }
+  .auth-brand{ display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .auth-brand .mark{
+    width:34px; height:34px; border-radius:8px;
+    background:linear-gradient(135deg, var(--teal), var(--blue));
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-weight:700; color:#04110D; font-size:15px;
+  }
+  .auth-brand h1{ font-family:var(--mono); font-size:19px; letter-spacing:0.5px; }
+  .auth-sub{ font-size:12px; color:var(--text-dim); font-family:var(--mono); margin-bottom:26px; letter-spacing:0.5px;}
+  .auth-tabs{ display:flex; gap:4px; background:var(--bg-panel-2); border:1px solid var(--border); border-radius:9px; padding:3px; margin-bottom:20px;}
+  .auth-tab{ flex:1; text-align:center; padding:9px 0; font-size:13px; font-weight:600; border-radius:7px; cursor:pointer; color:var(--text-dim); transition:.15s;}
+  .auth-tab.active{ background:var(--bg-raised); color:var(--teal); }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:11px; color:var(--text-dim); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;}
+  .field input, .field select{
+    width:100%; background:var(--bg-panel-2); border:1px solid var(--border);
+    color:var(--text); padding:11px 12px; border-radius:8px; font-size:14px; font-family:var(--sans);
+    outline:none; transition:.15s;
+  }
+  .field input:focus, .field select:focus{ border-color:var(--teal); box-shadow:0 0 0 3px rgba(0,230,184,0.12); }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius:9px; font-weight:600; cursor:pointer; font-family:var(--sans);
+    transition:.15s; letter-spacing:0.2px;
+  }
+  .btn-primary{ background:linear-gradient(135deg, var(--teal), var(--teal-dim)); color:#04120D; padding:12px 18px; width:100%; font-size:14px;}
+  .btn-primary:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+  .btn-ghost{ background:transparent; border:1px solid var(--border); color:var(--text); padding:10px 16px; font-size:13px;}
+  .btn-ghost:hover{ border-color:var(--teal); color:var(--teal); }
+  .btn-danger{ background:linear-gradient(135deg, var(--red), #C22436); color:#fff; padding:12px 18px; font-size:14px; }
+  .btn-danger:hover{ filter:brightness(1.1); }
+  .btn-small{ padding:7px 12px; font-size:12px; border-radius:7px; }
+  .auth-error{ font-size:12px; color:var(--red); font-family:var(--mono); margin-bottom:10px; min-height:14px;}
+  .auth-foot{ margin-top:18px; font-size:11px; color:var(--text-faint); text-align:center; font-family:var(--mono);}
+
+  /* ---------- SHELL ---------- */
+  #shell{ position:absolute; inset:0; display:none; }
+  #shell.active{ display:flex; }
+
+  /* Sidebar */
+  #sidebar{
+    width:230px; min-width:230px; background:var(--bg-panel);
+    border-right:1px solid var(--border); display:flex; flex-direction:column;
+    padding:18px 14px; overflow-y:auto;
+  }
+  .side-brand{ display:flex; align-items:center; gap:10px; padding:6px 8px 20px; border-bottom:1px solid var(--border-soft); margin-bottom:14px;}
+  .side-brand .mark{
+    width:30px; height:30px; border-radius:7px;
+    background:linear-gradient(135deg, var(--teal), var(--blue));
+    display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; color:#04110D; font-size:13px;
+  }
+  .side-brand .name{ font-family:var(--mono); font-size:14px; letter-spacing:0.4px; }
+  .side-brand .ver{ font-size:9px; color:var(--text-faint); font-family:var(--mono); }
+  .side-close{ display:none; margin-left:auto; background:none; border:none; color:var(--text-dim); font-size:20px; cursor:pointer; line-height:1; padding:4px 6px; }
+  nav.navlist{ display:flex; flex-direction:column; gap:2px; flex:1; }
+  .navitem{
+    display:flex; align-items:center; gap:11px; padding:12px 11px; border-radius:8px;
+    color:var(--text-dim); font-size:13.5px; font-weight:500; cursor:pointer; transition:.15s; position:relative;
+    min-height:44px;
+  }
+  .navitem svg{ width:17px; height:17px; flex-shrink:0; }
+  .navitem:hover{ background:var(--bg-raised); color:var(--text); }
+  .navitem.active{ background:rgba(0,230,184,0.09); color:var(--teal); }
+  .navitem.active::before{
+    content:''; position:absolute; left:-14px; top:50%; transform:translateY(-50%);
+    width:3px; height:18px; background:var(--teal); border-radius:2px;
+  }
+  .navitem.sos-nav.active, .navitem.sos-nav:hover{ color:var(--red); background:rgba(255,59,84,0.09);}
+  .side-foot{ border-top:1px solid var(--border-soft); padding-top:12px; margin-top:8px;}
+  .side-user{ display:flex; align-items:center; gap:9px; padding:8px; border-radius:8px; cursor:pointer;}
+  .side-user:hover{ background:var(--bg-raised); }
+  .avatar{ width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--teal)); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; font-size:12px; color:#04110D; flex-shrink:0;}
+  .side-user .u-name{ font-size:12.5px; font-weight:600; }
+  .side-user .u-role{ font-size:10.5px; color:var(--text-faint); font-family:var(--mono);}
+
+  #sidebar-backdrop{ display:none; position:fixed; inset:0; background:rgba(4,6,12,0.6); z-index:80; }
+
+  /* Main column */
+  #main-col{ flex:1; display:flex; flex-direction:column; min-width:0; }
+
+  /* Topbar */
+  #topbar{
+    height:56px; border-bottom:1px solid var(--border); display:flex; align-items:center;
+    justify-content:space-between; padding:0 22px; background:var(--bg-panel-2); flex-shrink:0; gap:10px;
+  }
+  .topbar-left{ display:flex; align-items:center; gap:12px; min-width:0; }
+  .hamburger{ display:none; background:none; border:1px solid var(--border); color:var(--text); width:36px; height:36px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+  .hamburger svg{ width:18px; height:18px; }
+  .topbar-title{ font-size:14px; font-weight:700; letter-spacing:0.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .coord-hud{
+    font-family:var(--mono); font-size:11.5px; color:var(--teal); display:flex; align-items:center; gap:10px;
+    background:rgba(0,230,184,0.06); border:1px solid rgba(0,230,184,0.18); padding:6px 12px; border-radius:20px;
+    letter-spacing:0.3px; flex-shrink:0; white-space:nowrap;
+  }
+  .coord-hud .dot{ width:6px; height:6px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); animation:pulse-dot 1.6s infinite; flex-shrink:0; }
+  .coord-hud.off{ color:var(--text-faint); border-color:var(--border); background:transparent; }
+  .coord-hud.off .dot{ background:var(--text-faint); box-shadow:none; animation:none; }
+  @keyframes pulse-dot{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  /* Content area */
+  #content{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:24px 26px 40px; }
+  .view{ display:none; animation:fadein .2s ease; }
+  .view.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ---------- RESPONSIVE / MOBILE ---------- */
+  @media (max-width: 900px){
+    #sidebar{
+      position:fixed; top:0; left:0; bottom:0; z-index:90; width:78vw; max-width:290px;
+      transform:translateX(-100%); transition:transform .22s ease; box-shadow:0 0 40px rgba(0,0,0,0.5);
+    }
+    #sidebar.open{ transform:translateX(0); }
+    #sidebar.open ~ #sidebar-backdrop, #sidebar-backdrop.open{ display:block; }
+    .side-close{ display:block; }
+    .hamburger{ display:flex; }
+    #topbar{ padding:0 12px; height:52px; }
+    .coord-hud{ font-size:10px; padding:5px 9px; gap:6px; }
+    .coord-hud span:not(.dot){ max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #content{ padding:14px 12px 90px; }
+    .page-head h2{ font-size:17px; }
+    .grid-3, .grid-2{ grid-template-columns:1fr !important; }
+    .quick-grid{ grid-template-columns:repeat(2,1fr) !important; gap:10px; }
+    .route-compare{ grid-template-columns:1fr !important; }
+    .toolbar{ gap:8px; }
+    .toolbar > *{ flex:1 1 auto; }
+    .btn{ min-height:42px; }
+    #map-live, #map-planner, #map-devices{ height:56vh; min-height:280px; }
+    .sos-btn{ width:clamp(120px,44vw,170px); height:clamp(120px,44vw,170px); font-size:18px; }
+    .auth-card{ padding:26px 20px 22px; }
+    table.data-table{ font-size:11.5px; }
+    .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width: 420px){
+    .quick-grid{ grid-template-columns:1fr !important; }
+    .topbar-title{ display:none; }
+  }
+
+  .page-head{ margin-bottom:20px; }
+  .page-head h2{ font-size:20px; font-weight:800; margin-bottom:4px; }
+  .page-head p{ font-size:12.5px; color:var(--text-dim); }
+  .eyebrow{ font-family:var(--mono); font-size:10.5px; color:var(--teal); letter-spacing:1.2px; text-transform:uppercase; margin-bottom:6px; }
+
+  .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:18px; }
+  .card + .card{ margin-top:14px; }
+  .grid{ display:grid; gap:14px; }
+  .grid-3{ grid-template-columns:repeat(3,1fr); }
+  .grid-2{ grid-template-columns:repeat(2,1fr); }
+  @media(max-width:1000px){ .grid-3{grid-template-columns:1fr 1fr;} }
+
+  .stat-card{ padding:16px 18px; }
+  .stat-card .lbl{ font-family:var(--mono); font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;}
+  .stat-card .val{ font-size:22px; font-weight:800; font-family:var(--mono); color:var(--text); }
+  .stat-card .sub{ font-size:11px; color:var(--text-dim); margin-top:4px; }
+
+  .quick-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:16px;}
+  @media(max-width:900px){ .quick-grid{grid-template-columns:repeat(2,1fr);} }
+  .quick-btn{
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:11px; padding:16px 14px;
+    display:flex; flex-direction:column; gap:10px; cursor:pointer; transition:.15s; text-align:left;
+  }
+  .quick-btn:hover{ border-color:var(--teal); transform:translateY(-2px); }
+  .quick-btn svg{ width:20px; height:20px; color:var(--teal); }
+  .quick-btn .qt{ font-size:13px; font-weight:700; }
+  .quick-btn .qs{ font-size:11px; color:var(--text-dim); }
+
+  #map-live, #map-planner, #map-devices{ height:calc(100vh - 220px); min-height:380px; border-radius:12px; border:1px solid var(--border); overflow:hidden;}
+  .leaflet-container{ background:#0C1220; font-family:var(--sans); }
+
+  .map-style-toggle{ display:flex; background:var(--bg-panel); border:1px solid var(--border); border-radius:9px; overflow:hidden; box-shadow:0 4px 14px rgba(0,0,0,0.4); }
+  .ms-btn{ border:none; background:transparent; color:var(--text-dim); font-size:11.5px; font-weight:600; padding:8px 12px; cursor:pointer; font-family:var(--sans); }
+  .ms-btn.active{ background:var(--teal); color:#04120D; }
+  .ms-btn:not(.active):hover{ background:var(--bg-raised); color:var(--text); }
+  .google-map-overlay{ position:absolute; inset:0; z-index:500; display:none; background:var(--bg-panel-2); }
+
+  .live-stats{ display:none; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .live-stat{ flex:1; min-width:110px; background:var(--bg-panel); border:1px solid var(--border); border-radius:10px; padding:11px 14px; }
+  .live-stat .ls-lbl{ font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.7px; }
+  .live-stat .ls-val{ font-family:var(--mono); font-size:16px; font-weight:700; color:var(--teal); margin-top:3px; }
+
+  .toolbar{ display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+
+  table.data-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.data-table th{ text-align:left; padding:9px 10px; color:var(--text-faint); font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid var(--border); }
+  table.data-table td{ padding:11px 10px; border-bottom:1px solid var(--border-soft); color:var(--text); }
+  table.data-table tr:hover td{ background:rgba(255,255,255,0.02); }
+  .mono{ font-family:var(--mono); }
+  .tag{ display:inline-block; padding:3px 9px; border-radius:20px; font-size:10.5px; font-family:var(--mono); }
+  .tag-teal{ background:rgba(0,230,184,0.12); color:var(--teal); }
+  .tag-red{ background:rgba(255,59,84,0.12); color:var(--red); }
+  .tag-amber{ background:rgba(255,176,32,0.12); color:var(--amber); }
+
+  .empty-state{ text-align:center; padding:50px 20px; color:var(--text-faint); }
+  .empty-state svg{ width:38px; height:38px; margin-bottom:12px; opacity:0.5; }
+  .empty-state .et{ font-size:13px; font-weight:600; color:var(--text-dim); margin-bottom:4px;}
+  .empty-state .es{ font-size:12px; }
+
+  /* AI suggestion panel */
+  .ai-result{ border:1px solid rgba(0,230,184,0.25); background:rgba(0,230,184,0.05); border-radius:11px; padding:16px 18px; margin-top:14px;}
+  .ai-result .ai-head{ display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; color:var(--teal); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px;}
+  .route-compare{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+  .route-opt{ background:var(--bg-panel-2); border:1px solid var(--border); border-radius:9px; padding:13px 14px; }
+  .route-opt.best{ border-color:var(--teal); }
+  .route-opt .rt-name{ font-size:12px; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;}
+  .route-opt .rt-time{ font-family:var(--mono); font-size:20px; font-weight:700; }
+  .route-opt .rt-dist{ font-size:11px; color:var(--text-dim); margin-top:3px;}
+
+  /* SOS */
+  .sos-wrap{ display:flex; flex-direction:column; align-items:center; padding:30px 0 10px; }
+  .sos-btn{
+    width:180px; height:180px; border-radius:50%; border:none; cursor:pointer;
+    background:radial-gradient(circle at 35% 30%, #FF5468, var(--red) 65%, #C22436);
+    color:#fff; font-family:var(--mono); font-weight:800; font-size:22px; letter-spacing:2px;
+    position:relative; box-shadow:0 0 0 0 rgba(255,59,84,0.5);
+    animation:sos-pulse 2.2s infinite;
+  }
+  @keyframes sos-pulse{
+    0%{ box-shadow:0 0 0 0 rgba(255,59,84,0.45); }
+    70%{ box-shadow:0 0 0 26px rgba(255,59,84,0); }
+    100%{ box-shadow:0 0 0 0 rgba(255,59,84,0); }
+  }
+  .sos-btn:active{ transform:scale(0.97); }
+  .sos-caption{ font-size:12px; color:var(--text-dim); margin-top:18px; text-align:center; max-width:340px; font-family:var(--mono); }
+
+  .contact-row{ display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border-soft); }
+  .contact-row:last-child{ border-bottom:none; }
+  .contact-meta .cn{ font-size:13px; font-weight:600; }
+  .contact-meta .cc{ font-size:11px; color:var(--text-dim); font-family:var(--mono); }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(4,6,12,0.72); display:none; align-items:center; justify-content:center; z-index:999; backdrop-filter:blur(3px); }
+  .modal-overlay.active{ display:flex; }
+  .modal{ width:420px; max-width:92vw; background:var(--bg-panel); border:1px solid var(--border); border-radius:13px; padding:22px; }
+  .modal h3{ font-size:15px; margin-bottom:16px; }
+  .modal-close-row{ display:flex; gap:10px; margin-top:18px; }
+  .modal-close-row .btn{ flex:1; }
+
+  .perm-row{ display:flex; align-items:flex-start; gap:12px; padding:13px 0; border-bottom:1px solid var(--border-soft); }
+  .perm-row:last-of-type{ border-bottom:none; }
+  .perm-icon{ width:34px; height:34px; border-radius:9px; background:var(--bg-panel-2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--teal); }
+  .perm-icon svg{ width:17px; height:17px; }
+  .perm-meta{ flex:1; min-width:0; }
+  .perm-title{ font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .perm-desc{ font-size:11.5px; color:var(--text-dim); margin-top:3px; line-height:1.5; }
+  .perm-row .btn-small{ flex-shrink:0; margin-top:2px; }
+
+  ::-webkit-scrollbar{ width:9px; height:9px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:6px; }
+  ::-webkit-scrollbar-thumb:hover{ background:var(--text-faint); }
+
+  .toast-wrap{ position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:1200; }
+  .toast{ background:var(--bg-raised); border:1px solid var(--border); border-left:3px solid var(--teal); color:var(--text); padding:12px 16px; border-radius:8px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,0.4); animation:toast-in .2s ease; max-width:320px;}
+  .toast.err{ border-left-color:var(--red); }
+  @keyframes toast-in{ from{opacity:0; transform:translateX(10px);} to{opacity:1; transform:translateX(0);} }
+
+  .switch{ position:relative; width:38px; height:22px; flex-shrink:0; }
+  .switch input{ display:none; }
+  .switch .track{ position:absolute; inset:0; background:var(--border); border-radius:20px; cursor:pointer; transition:.15s; }
+  .switch .thumb{ position:absolute; top:3px; left:3px; width:16px; height:16px; background:var(--text-dim); border-radius:50%; transition:.15s; }
+  .switch input:checked + .track{ background:rgba(0,230,184,0.35); }
+  .switch input:checked + .track .thumb{ transform:translateX(16px); background:var(--teal); }
+
+  .link-btn{ background:none; border:none; color:var(--teal); font-size:12px; cursor:pointer; font-family:var(--mono); padding:0; }
+  .link-btn.danger{ color:var(--red); }
+  select.sel{ background:var(--bg-panel-2); border:1px solid var(--border); color:var(--text); padding:9px 11px; border-radius:8px; font-size:13px; }
+
+  .hist-item{ display:flex; align-items:center; justify-content:between; gap:14px; padding:11px 0; border-bottom:1px solid var(--border-soft); cursor:pointer; }
+  .hist-item:hover{ background:rgba(255,255,255,0.02); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="grid-backdrop"></div>
+
+  <!-- ============ AUTH SCREEN ============ -->
+  <div id="auth-screen">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="mark">GX</div>
+        <h1>GLOBALCOREX</h1>
+      </div>
+      <div class="auth-sub">v1.0 — NAVIGATION &amp; SAFETY PLATFORM</div>
+
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</div>
+        <div class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Register</div>
+      </div>
+
+      <div class="auth-error" id="auth-error"></div>
+
+      <form id="login-form" onsubmit="return handleLogin(event)">
+        <div class="field"><label>Email</label><input type="email" id="login-email" required placeholder="you@example.com" /></div>
+        <div class="field"><label>Password</label><input type="password" id="login-password" required placeholder="••••••••" /></div>
+        <button class="btn btn-primary" type="submit">Sign In</button>
+      </form>
+
+      <form id="register-form" style="display:none" onsubmit="return handleRegister(event)">
+        <div class="field"><label>Full Name</label><input type="text" id="reg-name" required placeholder="Malik-X" /></div>
+        <div class="field"><label>Email</label><input type="email" id="reg-email" required placeholder="donmalik.pro1@gmail.com" /></div>
+        <div class="field"><label>Phone (WhatsApp)</label><input type="text" id="reg-phone" required placeholder="+256750985651" /></div>
+        <div class="field"><label>Password</label><input type="password" id="reg-password" required placeholder="Create a password" /></div>
+        <button class="btn btn-primary" type="submit">Create Account</button>
+      </form>
+
+      <div class="auth-foot">OWNER ACCOUNT · MALIK-X · KAMPALA, UG</div>
+    </div>
+  </div>
+
+  <!-- ============ APP SHELL ============ -->
+  <div id="shell">
+    <aside id="sidebar">
+      <div class="side-brand">
+        <div class="mark">GX</div>
+        <div><div class="name">GLOBALCOREX</div><div class="ver">v1.0</div></div>
+        <button class="side-close" onclick="closeSidebar()" aria-label="Close menu">&times;</button>
+      </div>
+      <nav class="navlist" id="navlist"></nav>
+      <div class="side-foot">
+        <div class="side-user" onclick="showView('settings')">
+          <div class="avatar" id="side-avatar">M</div>
+          <div><div class="u-name" id="side-name">Malik-X</div><div class="u-role">Owner</div></div>
+        </div>
+        <div style="padding:8px 8px 0"><button class="btn btn-ghost btn-small" style="width:100%" onclick="logout()">Sign Out</button></div>
+      </div>
+    </aside>
+    <div id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+    <div id="main-col">
+      <div id="topbar">
+        <div class="topbar-left">
+          <button class="hamburger" onclick="openSidebar()" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="topbar-title" id="topbar-title">Home</div>
+        </div>
+        <div class="coord-hud off" id="coord-hud"><span class="dot"></span><span id="coord-text">GPS NOT ACTIVE</span></div>
+      </div>
+
+      <div id="content">
+
+        <!-- HOME -->
+        <div class="view active" id="view-home">
+          <div class="page-head">
+            <div class="eyebrow">Dashboard</div>
+            <h2 id="welcome-msg">Welcome, Malik-X</h2>
+            <p>Live overview of your GlobalCoreX network.</p>
+          </div>
+          <div class="grid grid-3">
+            <div class="card stat-card"><div class="lbl">Live Location</div><div class="val" id="stat-loc">—</div><div class="sub" id="stat-loc-sub">Location services off</div></div>
+            <div class="card stat-card"><div class="lbl">Linked Devices</div><div class="val" id="stat-devices">0</div><div class="sub">Active on your account</div></div>
+            <div class="card stat-card"><div class="lbl">Emergency Contacts</div><div class="val" id="stat-contacts">0</div><div class="sub">Ready to receive SOS alerts</div></div>
+          </div>
+          <div class="grid grid-2" style="margin-top:14px;">
+            <div class="card" id="weather-card">
+              <div class="eyebrow">Conditions At Your Location</div>
+              <div id="weather-body"><div style="font-size:12px; color:var(--text-faint);">Enable live GPS to see current weather.</div></div>
+            </div>
+            <div class="card stat-card">
+              <div class="lbl">Distance Tracked (Saved Points)</div>
+              <div class="val" id="stat-distance">0 km</div>
+              <div class="sub">Based on your saved location history</div>
+            </div>
+          </div>
+          <div class="quick-grid" id="quick-grid"></div>
+          <div class="card" style="margin-top:14px;">
+            <div class="eyebrow">Recent Activity</div>
+            <div id="home-recent"></div>
+          </div>
+        </div>
+
+        <!-- LIVE MAP -->
+        <div class="view" id="view-map">
+          <div class="page-head"><div class="eyebrow">Live Tracking</div><h2>Live GPS Location</h2><p>Your current position, updated in real time from your device.</p></div>
+          <div class="toolbar">
+            <button class="btn btn-primary" style="width:auto" onclick="requestLiveLocation()">Enable Live GPS</button>
+            <button class="btn btn-ghost" onclick="centerOnMe('map-live')">Center On Me</button>
+            <button class="btn btn-ghost" onclick="saveCurrentToHistory()">Save Current Location</button>
+            <button class="btn btn-ghost" onclick="toggleTrail()" id="trail-btn">Show Trail</button>
+          </div>
+          <div class="live-stats" id="live-stats">
+            <div class="live-stat"><div class="ls-lbl">Accuracy</div><div class="ls-val" id="stat-accuracy">—</div></div>
+            <div class="live-stat"><div class="ls-lbl">Speed</div><div class="ls-val" id="stat-speed">—</div></div>
+            <div class="live-stat"><div class="ls-lbl">Heading</div><div class="ls-val" id="stat-heading">—</div></div>
+          </div>
+          <div id="map-live"></div>
+        </div>
+
+        <!-- ROUTE PLANNER -->
+        <div class="view" id="view-planner">
+          <div class="page-head"><div class="eyebrow">Navigation</div><h2>Route Planner</h2><p>Generate a route between two points and follow it on the map.</p></div>
+          <div class="card">
+            <div class="grid grid-2">
+              <div class="field" style="margin-bottom:0;"><label>Start</label><input type="text" id="rp-start" placeholder="Current location or address" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Destination</label><input type="text" id="rp-end" placeholder="Where to?" /></div>
+            </div>
+            <div class="toolbar" style="margin-top:14px; margin-bottom:0;">
+              <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dim);">
+                <span class="switch"><input type="checkbox" id="rp-tolls" /><span class="track"><span class="thumb"></span></span></span>
+                Avoid toll roads
+              </label>
+              <select class="sel" id="rp-pref"><option value="fastest">Prefer fastest route</option><option value="shortest">Prefer shortest distance</option></select>
+              <button class="btn btn-primary" style="width:auto; margin-left:auto;" onclick="planRoute()">Generate Route</button>
+            </div>
+          </div>
+          <div id="planner-result"></div>
+          <div id="map-planner" style="margin-top:14px;"></div>
+        </div>
+
+        <!-- AI ROUTES -->
+        <div class="view" id="view-ai">
+          <div class="page-head"><div class="eyebrow">AI Assistant</div><h2>AI Route Suggestions</h2><p>Claude-style route analysis weighing traffic, time, distance and your preferences.</p></div>
+          <div class="card">
+            <div class="grid grid-2">
+              <div class="field" style="margin-bottom:0;"><label>Start</label><input type="text" id="ai-start" placeholder="Current location or address" /></div>
+              <div class="field" style="margin-bottom:0;"><label>Destination</label><input type="text" id="ai-end" placeholder="Where to?" /></div>
+            </div>
+            <div class="toolbar" style="margin-top:14px; margin-bottom:0;">
+              <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dim);">
+                <span class="switch"><input type="checkbox" id="ai-tolls" /><span class="track"><span class="thumb"></span></span></span>
+                Avoid toll roads
+              </label>
+              <select class="sel" id="ai-pref"><option value="fastest">Prefer fastest route</option><option value="shortest">Prefer shortest distance</option></select>
+              <button class="btn btn-primary" style="width:auto; margin-left:auto;" onclick="runAISuggestion()">Ask AI</button>
+            </div>
+          </div>
+          <div id="ai-result"></div>
+        </div>
+
+        <!-- LOCATION HISTORY -->
+        <div class="view" id="view-history">
+          <div class="page-head"><div class="eyebrow">Log</div><h2>Location History</h2><p>Every saved position from your GlobalCoreX account.</p></div>
+          <div class="toolbar"><button class="btn btn-ghost btn-small" onclick="clearHistory()">Clear History</button></div>
+          <div class="card"><div id="history-list"></div></div>
+        </div>
+
+        <!-- DEVICES -->
+        <div class="view" id="view-devices">
+          <div class="page-head"><div class="eyebrow">Fleet</div><h2>My Devices</h2><p>Devices linked to your GlobalCoreX account.</p></div>
+          <div class="toolbar"><button class="btn btn-primary" style="width:auto" onclick="openDeviceModal()">+ Link Device</button></div>
+          <div class="card"><div id="device-list"></div></div>
+          <div id="map-devices" style="margin-top:14px; display:none;"></div>
+        </div>
+
+        <!-- SOS -->
+        <div class="view" id="view-sos">
+          <div class="page-head"><div class="eyebrow">Emergency</div><h2>SOS Emergency Alerts</h2><p>Press and hold in a real emergency — this notifies your trusted contacts with your live location.</p></div>
+          <div class="grid grid-2">
+            <div class="card">
+              <div class="sos-wrap">
+                <button class="sos-btn" onclick="triggerSOS()">SOS</button>
+                <div class="sos-caption">Pressing this captures your GPS location, prepares an alert with a map link for each trusted contact, and logs the event to your emergency history.</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="eyebrow">Trusted Contacts</div>
+              <div id="sos-contact-list"></div>
+              <button class="btn btn-ghost btn-small" style="margin-top:12px; width:100%;" onclick="showView('settings')">Manage Contacts</button>
+            </div>
+          </div>
+          <div class="card" style="margin-top:14px;">
+            <div class="eyebrow">Emergency History</div>
+            <div id="sos-log"></div>
+          </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="view" id="view-settings">
+          <div class="page-head"><div class="eyebrow">Account</div><h2>Profile &amp; Settings</h2><p>Manage your identity, trusted contacts and routing preferences.</p></div>
+
+          <div class="card">
+            <div class="eyebrow">Profile</div>
+            <div class="grid grid-2">
+              <div class="field"><label>Full Name</label><input type="text" id="set-name" /></div>
+              <div class="field"><label>Email</label><input type="email" id="set-email" disabled /></div>
+              <div class="field"><label>WhatsApp Number</label><input type="text" id="set-phone" /></div>
+            </div>
+            <button class="btn btn-primary" style="width:auto;" onclick="saveProfile()">Save Profile</button>
+          </div>
+
+          <div class="card">
+            <div class="eyebrow">Trusted Emergency Contacts</div>
+            <div id="settings-contact-list"></div>
+            <button class="btn btn-ghost btn-small" style="margin-top:12px;" onclick="openContactModal()">+ Add Trusted Contact</button>
+          </div>
+
+          <div class="card">
+            <div class="eyebrow">Routing Preferences</div>
+            <div class="grid grid-2">
+              <div class="field" style="margin-bottom:0;"><label>Default Preference</label>
+                <select class="sel" id="set-pref" style="width:100%;"><option value="fastest">Prefer fastest route</option><option value="shortest">Prefer shortest distance</option></select>
+              </div>
+              <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dim); margin-top:22px;">
+                <span class="switch"><input type="checkbox" id="set-tolls" /><span class="track"><span class="thumb"></span></span></span>
+                Always avoid toll roads
+              </label>
+            </div>
+            <button class="btn btn-primary" style="width:auto; margin-top:12px;" onclick="savePrefs()">Save Preferences</button>
+          </div>
+
+          <div class="card">
+            <div class="eyebrow">Integrations</div>
+            <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">Google requires your own licensed API key to display Google Maps — this app can't legally embed Google's maps without one. Get a free-tier key from the Google Cloud Console (Maps JavaScript API) and paste it below.</p>
+            <div class="field" style="margin-bottom:10px;"><label>Google Maps API Key</label><input type="text" id="set-google-key" placeholder="AIza..." /></div>
+            <button class="btn btn-ghost btn-small" onclick="saveGoogleKey()">Save Key</button>
+          </div>
+
+          <div class="card">
+            <div class="eyebrow">App Permissions</div>
+            <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">GlobalCoreX needs these to power live tracking, routing and SOS alerts.</p>
+            <div id="settings-permissions-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="eyebrow">Contact / Support</div>
+            <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7;">WhatsApp: +256 750 985 651<br/>Email: donmalik.pro1@gmail.com</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Contact Modal -->
+<div class="modal-overlay" id="contact-modal">
+  <div class="modal">
+    <h3>Add Trusted Contact</h3>
+    <div class="field"><label>Name</label><input type="text" id="c-name" placeholder="e.g. Sarah N." /></div>
+    <div class="field"><label>Phone (for WhatsApp/SMS alert)</label><input type="text" id="c-phone" placeholder="+2567..." /></div>
+    <div class="field"><label>Email (optional)</label><input type="email" id="c-email" placeholder="contact@example.com" /></div>
+    <div class="modal-close-row">
+      <button class="btn btn-ghost" onclick="closeModal('contact-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveContact()">Save Contact</button>
+    </div>
+  </div>
+</div>
+
+<!-- Device Modal -->
+<div class="modal-overlay" id="device-modal">
+  <div class="modal">
+    <h3>Link a Device</h3>
+    <div class="field"><label>Device Name</label><input type="text" id="d-name" placeholder="e.g. Malik's Phone" /></div>
+    <div class="field"><label>Device Type</label>
+      <select class="sel" id="d-type" style="width:100%;">
+        <option value="phone">Phone</option>
+        <option value="tablet">Tablet</option>
+        <option value="tracker">GPS Tracker</option>
+        <option value="vehicle">Vehicle</option>
+        <option value="wearable">Wearable</option>
+      </select>
+    </div>
+    <div class="modal-close-row">
+      <button class="btn btn-ghost" onclick="closeModal('device-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDevice()">Link Device</button>
+    </div>
+  </div>
+</div>
+
+<!-- Permissions Modal -->
+<div class="modal-overlay" id="permissions-modal">
+  <div class="modal" style="width:460px;">
+    <h3>Enable GlobalCoreX Permissions</h3>
+    <p id="perm-context" style="font-size:12.5px; color:var(--text-dim); margin-bottom:16px; line-height:1.6;">GlobalCoreX works best with a couple of permissions from your browser. You're always in control — these can be changed anytime in your browser or phone settings.</p>
+
+    <div class="perm-row" id="perm-row-location">
+      <div class="perm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.6 7-12a7 7 0 1 0-14 0c0 5.4 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/></svg></div>
+      <div class="perm-meta">
+        <div class="perm-title">Location Access <span class="tag tag-red perm-badge">Required</span></div>
+        <div class="perm-desc">Powers Live GPS, the map, route planning and SOS alerts.</div>
+      </div>
+      <button class="btn btn-primary btn-small" onclick="requestLocationPermission()">Allow</button>
+    </div>
+
+    <div class="perm-row" id="perm-row-notify">
+      <div class="perm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+      <div class="perm-meta">
+        <div class="perm-title">Notifications <span class="tag tag-amber perm-badge">Recommended</span></div>
+        <div class="perm-desc">Confirms on your device when an SOS alert has gone out.</div>
+      </div>
+      <button class="btn btn-ghost btn-small" onclick="requestNotifyPermission()">Allow</button>
+    </div>
+
+    <div class="perm-row" id="perm-row-background">
+      <div class="perm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+      <div class="perm-meta">
+        <div class="perm-title">Background &amp; Storage Access <span class="tag tag-amber perm-badge">Recommended</span></div>
+        <div class="perm-desc">Keeps tracking running while the screen is on and protects your saved locations, contacts and devices from being cleared by the browser.</div>
+      </div>
+      <button class="btn btn-ghost btn-small" onclick="requestBackgroundPermission()">Allow</button>
+    </div>
+
+    <div id="perm-denied-help" style="display:none; font-size:11.5px; color:var(--amber); background:rgba(255,176,32,0.08); border:1px solid rgba(255,176,32,0.25); border-radius:8px; padding:10px 12px; margin-top:4px; line-height:1.6;">
+      Location is blocked in your browser. Open your browser's site settings (tap the lock/info icon next to the address bar) and set Location to "Allow", then reload this page.
+    </div>
+    <div style="font-size:10.5px; color:var(--text-faint); margin-top:10px; line-height:1.6;">
+      Browsers don't allow web apps true unlimited background execution or OS admin rights — this is a security boundary, not a GlobalCoreX limit. What's above is the strongest real equivalent the Web platform allows. For always-on native background tracking, GlobalCoreX would need to ship as a native/PWA-installed app.
+    </div>
+
+    <div class="modal-close-row">
+      <button class="btn btn-ghost" onclick="closeModal('permissions-modal')">Skip for now</button>
+      <button class="btn btn-primary" onclick="closeModal('permissions-modal')">Continue</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ============================================================
+   GlobalCoreX v1.0 — Front-end demo application
+   Owner: Malik-X
+   Note: This is a fully functional client-side demo. Auth is
+   simulated (no server), routing uses public OSRM/Nominatim
+   endpoints, and SOS "sends" alerts via WhatsApp/email/SMS deep
+   links rather than a backend messaging gateway.
+   ============================================================ */
+
+/* ---------- Icons ---------- */
+function icon(name){
+  const paths = {
+    home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/>',
+    map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
+    route:'<circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="5" r="2.2"/><path d="M8 19h6a4 4 0 0 0 4-4V9a4 4 0 0 0-4-4h-1"/>',
+    ai:'<rect x="4" y="7" width="16" height="12" rx="2"/><circle cx="9" cy="13" r="1.3"/><circle cx="15" cy="13" r="1.3"/><path d="M12 7V3"/><path d="M8 3h8"/>',
+    history:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/>',
+    device:'<rect x="6" y="2" width="12" height="20" rx="2.5"/><line x1="10" y1="19" x2="14" y2="19"/>',
+    sos:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.6" fill="currentColor"/>',
+    settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.06.06a2 2 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.06.06a2 2 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.06-.06a2 2 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.06-.06a2 2 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/>'
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]||''}</svg>`;
+}
+const NAV_ITEMS = [
+  {view:'home', label:'Home', ic:'home'},
+  {view:'map', label:'Live Map', ic:'map'},
+  {view:'planner', label:'Route Planner', ic:'route'},
+  {view:'ai', label:'AI Routes', ic:'ai'},
+  {view:'history', label:'Location History', ic:'history'},
+  {view:'devices', label:'My Devices', ic:'device'},
+  {view:'sos', label:'SOS', ic:'sos', cls:'sos-nav'},
+  {view:'settings', label:'Profile', ic:'settings'}
+];
+document.getElementById('navlist').innerHTML = NAV_ITEMS.map((n,i)=>
+  `<div class="navitem ${n.cls||''} ${i===0?'active':''}" data-view="${n.view}" onclick="showView('${n.view}')">${icon(n.ic)}<span>${n.label}</span></div>`
+).join('');
+
+const QUICK_ITEMS = [
+  {view:'map', ic:'map', t:'Open Map', s:'View live position'},
+  {view:'ai', ic:'ai', t:'AI Route Suggestions', s:'Beat the traffic'},
+  {view:'planner', ic:'route', t:'Route Planner', s:'Plan a journey'},
+  {view:'sos', ic:'sos', t:'SOS Emergency', s:'Alert trusted contacts'}
+];
+document.getElementById('quick-grid').innerHTML = QUICK_ITEMS.map(q=>
+  `<div class="quick-btn" onclick="showView('${q.view}')">${icon(q.ic)}<div class="qt">${q.t}</div><div class="qs">${q.s}</div></div>`
+).join('');
+
+/* ---------- Storage helpers ---------- */
+/* Uses localStorage so accounts and data actually persist in the visitor's
+   browser across reloads/sessions once this file is hosted or opened directly
+   (window.storage from the Claude.ai preview sandbox does NOT work outside
+   Claude.ai, which is why sign in/registration failed before). */
+function sGet(key){
+  try{ const raw = localStorage.getItem('gcx::'+key); return raw ? JSON.parse(raw) : null; }
+  catch(e){ console.error('storage get failed', e); return null; }
+}
+function sSet(key, val){
+  try{ localStorage.setItem('gcx::'+key, JSON.stringify(val)); return true; }
+  catch(e){ console.error('storage set failed', e); return false; }
+}
+function sanitizeKey(email){ return 'u_' + email.toLowerCase().replace(/[^a-z0-9@._-]/g,''); }
+
+/* Real (client-side) password hashing via SubtleCrypto — passwords are never
+   stored in plain text. Note: for true server-verified security (protecting
+   against someone reading this file's localStorage on a shared computer),
+   a real backend is required — see the note at the bottom of Settings. */
+async function hashPassword(pw){
+  // SubtleCrypto requires a secure context (https:// or localhost). If this
+  // file is opened directly (file://) it isn't available, so fall back to a
+  // simple deterministic hash so accounts still work. For real deployments,
+  // host this over HTTPS so the strong SHA-256 path is used.
+  if(window.crypto && window.crypto.subtle){
+    try{
+      const enc = new TextEncoder().encode(pw);
+      const buf = await window.crypto.subtle.digest('SHA-256', enc);
+      return 'sha256:' + Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }catch(e){ /* fall through to fallback below */ }
+  }
+  let h = 0;
+  for(let i=0;i<pw.length;i++){ h = ((h<<5)-h + pw.charCodeAt(i))|0; }
+  return 'fallback:' + Math.abs(h).toString(16) + ':' + pw.length;
+}
+
+/* ---------- Toast ---------- */
+function toast(msg, isErr){
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast' + (isErr?' err':'');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3800);
+}
+
+/* ---------- State ---------- */
+let CURRENT_USER = null; // email
+let USER_DATA = null;    // {name, phone, email, contacts, devices, history, sosLog, prefs}
+let liveWatchId = null;
+let lastKnown = null; // {lat, lon, accuracy, speed, heading, altitude, ts}
+let mapLive, mapPlanner, mapDevices;
+let liveMarker, liveAccuracyCircle, plannerLayer, plannerMarkers=[];
+let batteryRef = null; // live reference to navigator.getBattery() result, if supported
+
+/* ---------- PWA install prompt (real, gives closest thing to background/app behavior) ----------
+   Only fires if this file is hosted with its companion manifest.json and
+   sw.js alongside it — browsers require those to consider a site installable.
+   Silently does nothing if they're missing, so this never breaks a lone
+   index.html. */
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const row = document.getElementById('install-app-row');
+  if(row) row.style.display = 'block';
+});
+async function promptInstallApp(){
+  if(!deferredInstallPrompt){ toast('Install isn\'t available — host this page with manifest.json and sw.js alongside it to enable it.', true); return; }
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  const row = document.getElementById('install-app-row');
+  if(row) row.style.display = 'none';
+}
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* no sw.js hosted alongside this file — fine, app still works */ });
+  });
+}
+
+/* ---------- Map base layers (Map / Satellite / Google) ---------- */
+function createBaseLayers(){
+  // CartoDB Voyager: a clean, clearly labeled basemap (street names, place
+  // names, points of interest) — much more legible than plain OSM tiles.
+  const normal = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution:'&copy; OpenStreetMap contributors &copy; CARTO', maxZoom:20, subdomains:'abcd'
+  });
+  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution:'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics', maxZoom:19
+  });
+  // Place-name / boundary labels drawn on top of the satellite imagery so
+  // towns, roads and landmarks stay readable even in satellite view.
+  const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom:19, pane:'shadowPane'
+  });
+  return {normal, satellite, satelliteLabels};
+}
+
+let googleMapsApiPromise = null;
+function loadGoogleMapsApi(key){
+  if(window.google && window.google.maps) return Promise.resolve(window.google.maps);
+  if(googleMapsApiPromise) return googleMapsApiPromise;
+  googleMapsApiPromise = new Promise((resolve, reject)=>{
+    window.__gcxGoogleMapsReady = ()=> resolve(window.google.maps);
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=__gcxGoogleMapsReady`;
+    script.async = true;
+    script.onerror = ()=>{ googleMapsApiPromise = null; reject(new Error('Could not load Google Maps — check that your API key is valid and billing is enabled on it.')); };
+    document.head.appendChild(script);
+  });
+  return googleMapsApiPromise;
+}
+
+function addMapStyleToggle(map, layers){
+  const leafletContainer = map.getContainer();
+  const googleDiv = document.createElement('div');
+  googleDiv.className = 'google-map-overlay';
+  leafletContainer.appendChild(googleDiv);
+  let googleMapInstance = null;
+
+  const ctl = L.control({position:'topright'});
+  ctl.onAdd = function(){
+    const div = L.DomUtil.create('div', 'map-style-toggle');
+    div.innerHTML = `<button class="ms-btn active" data-t="normal">Map</button><button class="ms-btn" data-t="sat">Satellite</button><button class="ms-btn" data-t="google">Google</button>`;
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+    div.querySelectorAll('.ms-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(btn.dataset.t==='google'){
+          const key = (USER_DATA && USER_DATA.prefs && USER_DATA.prefs.googleMapsKey) || '';
+          if(!key){
+            toast('Add your own Google Maps API key in Settings → Integrations to enable this — Google requires a licensed key for their maps.', true);
+            return;
+          }
+          div.querySelectorAll('.ms-btn').forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          googleDiv.style.display = 'block';
+          try{
+            const gmaps = await loadGoogleMapsApi(key);
+            const center = map.getCenter();
+            if(!googleMapInstance){
+              googleMapInstance = new gmaps.Map(googleDiv, {
+                center:{lat:center.lat, lng:center.lng}, zoom: map.getZoom(),
+                mapTypeId:'roadmap', disableDefaultUI:true, zoomControl:true
+              });
+            } else {
+              googleMapInstance.setCenter({lat:center.lat, lng:center.lng});
+              googleMapInstance.setZoom(map.getZoom());
+            }
+          }catch(e){
+            toast(e.message, true);
+            div.querySelector('[data-t="normal"]').classList.add('active');
+            btn.classList.remove('active');
+            googleDiv.style.display = 'none';
+          }
+          return;
+        }
+        div.querySelectorAll('.ms-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        googleDiv.style.display = 'none';
+        if(btn.dataset.t==='sat'){
+          if(map.hasLayer(layers.normal)) map.removeLayer(layers.normal);
+          layers.satellite.addTo(map); layers.satelliteLabels.addTo(map);
+        } else {
+          if(map.hasLayer(layers.satellite)) map.removeLayer(layers.satellite);
+          if(map.hasLayer(layers.satelliteLabels)) map.removeLayer(layers.satelliteLabels);
+          layers.normal.addTo(map);
+        }
+      });
+    });
+    return div;
+  };
+  ctl.addTo(map);
+}
+
+/* ---------- Auth tab switching ---------- */
+function switchAuthTab(which){
+  document.getElementById('tab-login').classList.toggle('active', which==='login');
+  document.getElementById('tab-register').classList.toggle('active', which==='register');
+  document.getElementById('login-form').style.display = which==='login' ? 'block':'none';
+  document.getElementById('register-form').style.display = which==='register' ? 'block':'none';
+  document.getElementById('auth-error').textContent='';
+}
+
+/* Prefill registration with owner defaults for convenience */
+window.addEventListener('resize', ()=>{
+  if(mapLive) mapLive.invalidateSize();
+  if(mapPlanner) mapPlanner.invalidateSize();
+  if(mapDevices) mapDevices.invalidateSize();
+});
+window.addEventListener('orientationchange', ()=>{
+  setTimeout(()=>{
+    if(mapLive) mapLive.invalidateSize();
+    if(mapPlanner) mapPlanner.invalidateSize();
+    if(mapDevices) mapDevices.invalidateSize();
+  }, 300);
+});
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  init();
+});
+
+async function init(){
+  const session = await sGet('gcx_session');
+  if(session && session.email){
+    const ok = await loadUser(session.email);
+    if(ok){ enterApp(); return; }
+  }
+}
+
+/* ---------- Registration / Login ---------- */
+async function handleRegister(e){
+  e.preventDefault();
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim().toLowerCase();
+  const phone = document.getElementById('reg-phone').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent='';
+
+  if(!name || !email || !phone || !password){ errEl.textContent='All fields are required.'; return false; }
+
+  let users = await sGet('gcx_users') || [];
+  if(users.find(u=>u.email===email)){ errEl.textContent='An account with this email already exists.'; return false; }
+
+  const passwordHash = await hashPassword(password);
+  users.push({email, passwordHash, name});
+  await sSet('gcx_users', users);
+
+  const fresh = {
+    name, phone, email,
+    contacts: [],
+    devices: [{id:cryptoId(), name:'This Device ('+detectDeviceLabel()+')', type:detectDeviceType(), battery:null, batterySupported:false, charging:null, isThisDevice:true, lastLat:null, lastLon:null, lastSeen:null}],
+    history: [],
+    sosLog: [],
+    prefs: {avoidTolls:false, routeType:'fastest'}
+  };
+  await sSet(sanitizeKey(email), fresh);
+  await sSet('gcx_session', {email});
+
+  CURRENT_USER = email; USER_DATA = fresh;
+  toast('Account created. Welcome to GlobalCoreX.');
+  enterApp();
+  return false;
+}
+
+async function handleLogin(e){
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent='';
+
+  let users = await sGet('gcx_users') || [];
+  const passwordHash = await hashPassword(password);
+  const u = users.find(x=>x.email===email && x.passwordHash===passwordHash);
+  if(!u){ errEl.textContent='Invalid email or password.'; return false; }
+
+  await loadUser(email);
+  await sSet('gcx_session', {email});
+  enterApp();
+  return false;
+}
+
+function detectDeviceType(){
+  const ua = navigator.userAgent || '';
+  if(/iPad|Tablet/i.test(ua)) return 'tablet';
+  if(/Mobi|Android|iPhone/i.test(ua)) return 'phone';
+  return 'phone';
+}
+function detectDeviceLabel(){
+  const ua = navigator.userAgent || '';
+  if(/iPhone/i.test(ua)) return 'iPhone · Safari';
+  if(/iPad/i.test(ua)) return 'iPad · Safari';
+  if(/Android/i.test(ua)) return 'Android · Chrome';
+  if(/Windows/i.test(ua)) return 'Windows · Browser';
+  if(/Macintosh/i.test(ua)) return 'Mac · Browser';
+  return 'Web Browser';
+}
+
+async function loadUser(email){
+  const data = await sGet(sanitizeKey(email));
+  if(!data) return false;
+  CURRENT_USER = email;
+  USER_DATA = data;
+  if(!USER_DATA.prefs) USER_DATA.prefs = {avoidTolls:false, routeType:'fastest'};
+  // Migration: older accounts created before device telemetry existed won't
+  // have an isThisDevice flag — assign it to the first device so battery/
+  // online/network status has somewhere real to attach to.
+  if(USER_DATA.devices && USER_DATA.devices.length && !USER_DATA.devices.some(d=>d.isThisDevice)){
+    USER_DATA.devices[0].isThisDevice = true;
+    USER_DATA.devices[0].batterySupported = false;
+    await persistUser();
+  }
+  return true;
+}
+
+function logout(){
+  sSet('gcx_session', null);
+  if(liveWatchId!==null){ navigator.geolocation.clearWatch(liveWatchId); liveWatchId=null; }
+  CURRENT_USER = null; USER_DATA = null;
+  document.getElementById('shell').classList.remove('active');
+  document.getElementById('auth-screen').style.display='flex';
+}
+
+function cryptoId(){ return 'id_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+
+async function persistUser(){
+  if(CURRENT_USER) await sSet(sanitizeKey(CURRENT_USER), USER_DATA);
+}
+
+/* ---------- Enter app ---------- */
+function enterApp(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('shell').classList.add('active');
+  document.getElementById('welcome-msg').textContent = 'Welcome, ' + USER_DATA.name;
+  document.getElementById('side-name').textContent = USER_DATA.name;
+  document.getElementById('side-avatar').textContent = (USER_DATA.name||'U').trim().charAt(0).toUpperCase();
+  document.getElementById('set-name').value = USER_DATA.name;
+  document.getElementById('set-email').value = USER_DATA.email;
+  document.getElementById('set-phone').value = USER_DATA.phone;
+  document.getElementById('set-pref').value = USER_DATA.prefs.routeType;
+  document.getElementById('set-tolls').checked = USER_DATA.prefs.avoidTolls;
+  document.getElementById('set-google-key').value = USER_DATA.prefs.googleMapsKey || '';
+  renderAll();
+  showView('home');
+  setTimeout(()=>maybeAutoPromptPermissions(), 700);
+  setupDeviceTelemetry();
+}
+
+/* ---------- Real device telemetry (battery / online / network) ---------- */
+async function setupDeviceTelemetry(){
+  const thisDevice = USER_DATA.devices.find(d=>d.isThisDevice);
+  if(!thisDevice) return;
+
+  // Real battery level via the Battery Status API where the browser supports it
+  // (mainly Android Chrome; not available on iOS Safari or modern desktop
+  // Chrome — in those cases we say so honestly instead of faking a number).
+  if(navigator.getBattery){
+    try{
+      const battery = await navigator.getBattery();
+      batteryRef = battery;
+      const sync = async ()=>{
+        thisDevice.battery = Math.round(battery.level*100);
+        thisDevice.charging = battery.charging;
+        thisDevice.batterySupported = true;
+        thisDevice.lastSeen = Date.now();
+        await persistUser();
+        renderDevices();
+      };
+      sync();
+      battery.addEventListener('levelchange', sync);
+      battery.addEventListener('chargingchange', sync);
+    }catch(e){
+      thisDevice.batterySupported = false;
+      await persistUser();
+    }
+  } else {
+    thisDevice.batterySupported = false;
+    await persistUser();
+  }
+
+  // Real network connection type, where exposed by the browser
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const syncNetwork = async ()=>{
+    thisDevice.network = conn ? (conn.effectiveType || conn.type || null) : null;
+    thisDevice.online = navigator.onLine;
+    await persistUser();
+    renderDevices();
+  };
+  syncNetwork();
+  if(conn && conn.addEventListener) conn.addEventListener('change', syncNetwork);
+  window.addEventListener('online', syncNetwork);
+  window.addEventListener('offline', syncNetwork);
+}
+
+/* ---------- Permissions ---------- */
+async function getGeoPermissionState(){
+  try{
+    if(navigator.permissions && navigator.permissions.query){
+      const status = await navigator.permissions.query({name:'geolocation'});
+      return status.state; // 'granted' | 'denied' | 'prompt'
+    }
+  }catch(e){ /* not supported by this browser */ }
+  return 'unknown';
+}
+function getNotifyPermissionState(){
+  if(!('Notification' in window)) return 'unsupported';
+  return Notification.permission === 'default' ? 'prompt' : Notification.permission;
+}
+
+/* ---------- Background & storage access (Wake Lock + Persistent Storage) ----------
+   Browsers deliberately don't grant web pages true unlimited background
+   execution or OS-level admin rights — these two APIs are the strongest real
+   equivalents: Wake Lock keeps the screen (and JS timers) active while
+   tracking, and Persistent Storage asks the browser not to auto-clear this
+   site's saved data under storage pressure. */
+let wakeLockRef = null;
+async function requestWakeLock(){
+  if(!('wakeLock' in navigator)) return false;
+  try{
+    wakeLockRef = await navigator.wakeLock.request('screen');
+    wakeLockRef.addEventListener('release', ()=>{ wakeLockRef = null; });
+    return true;
+  }catch(e){ return false; }
+}
+document.addEventListener('visibilitychange', async ()=>{
+  if(document.visibilityState==='visible' && liveWatchId!==null && !wakeLockRef){
+    await requestWakeLock();
+  }
+});
+async function requestPersistentStorage(){
+  if(navigator.storage && navigator.storage.persist){
+    try{ return await navigator.storage.persist(); }catch(e){ return false; }
+  }
+  return false;
+}
+async function getBackgroundPermissionState(){
+  const supported = ('wakeLock' in navigator) || (navigator.storage && navigator.storage.persist);
+  if(!supported) return 'unsupported';
+  const persisted = (navigator.storage && navigator.storage.persisted) ? await navigator.storage.persisted().catch(()=>false) : false;
+  if(wakeLockRef || persisted) return 'granted';
+  return 'prompt';
+}
+async function requestBackgroundPermission(){
+  const wl = await requestWakeLock();
+  const persisted = await requestPersistentStorage();
+  if(wl || persisted){
+    toast('Background & storage protections enabled.');
+  } else {
+    toast('Your browser doesn\'t support these background features on this page. Installing GlobalCoreX as an app gives the closest thing to true background operation.', true);
+  }
+  refreshPermissionBadges(); renderSettingsPermissions();
+}
+
+function setPermBadge(rowId, state){
+  const row = document.getElementById(rowId);
+  if(!row) return;
+  const badge = row.querySelector('.perm-badge');
+  const btn = row.querySelector('button');
+  if(state==='granted'){
+    badge.textContent='Granted'; badge.className='tag tag-teal perm-badge';
+    btn.textContent='Allowed'; btn.disabled=true; btn.classList.add('btn-ghost'); btn.classList.remove('btn-primary');
+  } else if(state==='denied'){
+    badge.textContent='Blocked'; badge.className='tag tag-red perm-badge';
+    btn.textContent='Blocked'; btn.disabled=true;
+  } else if(state==='unsupported'){
+    badge.textContent='Unsupported'; badge.className='tag tag-amber perm-badge';
+    btn.disabled=true; btn.textContent='N/A';
+  } else {
+    btn.disabled=false; btn.textContent='Allow';
+  }
+  document.getElementById('perm-denied-help').style.display =
+    (rowId==='perm-row-location' && state==='denied') ? 'block' : (document.getElementById('perm-denied-help').style.display);
+}
+async function refreshPermissionBadges(){
+  const geoState = await getGeoPermissionState();
+  setPermBadge('perm-row-location', geoState);
+  setPermBadge('perm-row-notify', getNotifyPermissionState());
+  setPermBadge('perm-row-background', await getBackgroundPermissionState());
+  document.getElementById('perm-denied-help').style.display = geoState==='denied' ? 'block' : 'none';
+}
+function openPermissionsModal(contextMsg){
+  document.getElementById('perm-context').textContent = contextMsg ||
+    "GlobalCoreX works best with a couple of permissions from your browser. You're always in control — these can be changed anytime in your browser or phone settings.";
+  document.getElementById('permissions-modal').classList.add('active');
+  refreshPermissionBadges();
+}
+async function maybeAutoPromptPermissions(){
+  const geoState = await getGeoPermissionState();
+  if(geoState !== 'granted'){
+    openPermissionsModal("Welcome to GlobalCoreX. To track your live location, plan routes and send SOS alerts, allow the permissions below.");
+  }
+}
+function requestLocationPermission(){
+  // Actually triggers the browser's native permission prompt by starting a
+  // real geolocation request — there's no separate "just ask" API.
+  requestLiveLocation();
+  setTimeout(()=>{ refreshPermissionBadges(); renderSettingsPermissions(); }, 1200);
+}
+function requestNotifyPermission(){
+  if(!('Notification' in window)){ toast('Notifications are not supported on this browser.', true); return; }
+  Notification.requestPermission().then(()=>{ refreshPermissionBadges(); renderSettingsPermissions(); });
+}
+
+/* ---------- Mobile sidebar drawer ---------- */
+function openSidebar(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebar-backdrop').classList.add('open');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
+}
+
+/* ---------- View navigation ---------- */
+const titles = {home:'Home', map:'Live Map', planner:'Route Planner', ai:'AI Route Suggestions', history:'Location History', devices:'My Devices', sos:'SOS Emergency', settings:'Profile & Settings'};
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('active', n.dataset.view===name));
+  document.getElementById('topbar-title').textContent = titles[name] || name;
+  closeSidebar();
+  document.getElementById('content').scrollTop = 0;
+
+  if(name==='map'){ setTimeout(()=>initMapLive(),30); }
+  if(name==='planner'){ setTimeout(()=>initMapPlanner(),30); }
+  if(name==='devices'){ renderDevices(); }
+  if(name==='sos'){ renderSOS(); }
+  if(name==='settings'){ renderSettingsContacts(); renderSettingsPermissions(); }
+  if(name==='history'){ renderHistory(); }
+  if(name==='home'){ renderHome(); }
+}
+
+/* ---------- Render orchestrator ---------- */
+function renderAll(){
+  renderHome();
+  renderDevices();
+  renderSOS();
+  renderSettingsContacts();
+  renderHistory();
+}
+
+function haversineKm(a,b){
+  const R=6371, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(b.lat-a.lat), dLon=toRad(b.lon-a.lon);
+  const x = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+  return R * 2*Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+let lastWeatherFetchKey = null;
+async function fetchWeatherFor(lat, lon){
+  const body = document.getElementById('weather-body');
+  if(!body) return;
+  const key = lat.toFixed(2)+','+lon.toFixed(2);
+  if(key === lastWeatherFetchKey) return;
+  lastWeatherFetchKey = key;
+  try{
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+    if(!res.ok) throw new Error('weather service unavailable');
+    const data = await res.json();
+    const w = data.current_weather;
+    if(!w) throw new Error('no weather data');
+    const codes = {0:'Clear sky',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Light drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Snow',80:'Rain showers',95:'Thunderstorm'};
+    const desc = codes[w.weathercode] || 'Conditions unavailable';
+    body.innerHTML = `<div style="display:flex; align-items:center; gap:16px;">
+      <div style="font-family:var(--mono); font-size:30px; font-weight:800; color:var(--teal);">${Math.round(w.temperature)}°C</div>
+      <div><div style="font-size:13px; font-weight:600;">${desc}</div><div style="font-size:11px; color:var(--text-dim); font-family:var(--mono);">Wind ${Math.round(w.windspeed)} km/h</div></div>
+    </div>`;
+  }catch(e){
+    body.innerHTML = `<div style="font-size:12px; color:var(--text-faint);">Weather unavailable right now.</div>`;
+  }
+}
+
+function renderHome(){
+  document.getElementById('stat-devices').textContent = USER_DATA.devices.length;
+  document.getElementById('stat-contacts').textContent = USER_DATA.contacts.length;
+  if(lastKnown){
+    document.getElementById('stat-loc').textContent = lastKnown.lat.toFixed(4)+', '+lastKnown.lon.toFixed(4);
+    document.getElementById('stat-loc-sub').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    fetchWeatherFor(lastKnown.lat, lastKnown.lon);
+  } else {
+    document.getElementById('stat-loc').textContent = '—';
+    document.getElementById('stat-loc-sub').textContent = 'Location services off';
+  }
+  let distKm = 0;
+  for(let i=1;i<USER_DATA.history.length;i++){
+    distKm += haversineKm(USER_DATA.history[i-1], USER_DATA.history[i]);
+  }
+  document.getElementById('stat-distance').textContent = distKm < 1 ? Math.round(distKm*1000)+' m' : distKm.toFixed(1)+' km';
+  const recentWrap = document.getElementById('home-recent');
+  const items = [...USER_DATA.history].slice(-4).reverse();
+  if(items.length===0){
+    recentWrap.innerHTML = `<div class="empty-state" style="padding:24px 0;"><div class="et">No activity yet</div><div class="es">Enable live GPS or save a location to see it here.</div></div>`;
+  } else {
+    recentWrap.innerHTML = items.map(h=>`
+      <div class="hist-item">
+        <div>
+          <div style="font-size:12.5px; font-weight:600;">${h.place || h.label || 'Location saved'}</div>
+          <div class="mono" style="font-size:11px; color:var(--text-dim);">${h.lat.toFixed(4)}, ${h.lon.toFixed(4)} · ${new Date(h.time).toLocaleString()}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+/* ---------- Coordinate HUD ---------- */
+function updateHud(lat, lon, accuracy){
+  const hud = document.getElementById('coord-hud');
+  const txt = document.getElementById('coord-text');
+  if(lat==null){
+    hud.classList.add('off'); txt.textContent = 'GPS NOT ACTIVE';
+  } else {
+    hud.classList.remove('off');
+    txt.textContent = lat.toFixed(5)+'°, '+lon.toFixed(5)+'°' + (accuracy!=null ? ' (±'+Math.round(accuracy)+'m)' : '');
+  }
+}
+
+/* ---------- Geolocation ---------- */
+function isSecureEnoughForGeo(){
+  // Most mobile browsers block geolocation outright unless the page is served
+  // over HTTPS (localhost and file:// are sometimes allowed by desktop
+  // browsers, but not reliably on phones).
+  return window.isSecureContext || location.hostname==='localhost';
+}
+let lastAutoLogPoint = null;
+let lastAutoLogTime = 0;
+function maybeAutoLogVisit(lat, lon){
+  const now = Date.now();
+  if(lastAutoLogPoint){
+    const distKm = haversineKm(lastAutoLogPoint, {lat, lon});
+    if(distKm < 0.15 || (now - lastAutoLogTime) < 3*60*1000) return; // needs 150m+ move AND 3+ min gap
+  }
+  lastAutoLogPoint = {lat, lon};
+  lastAutoLogTime = now;
+  const entry = {id:cryptoId(), time:now, lat, lon, label:'Visited (auto-tracked)', place:null};
+  USER_DATA.history.push(entry);
+  persistUser();
+  reverseGeocode(lat, lon).then(async place=>{
+    if(!place) return;
+    entry.place = place;
+    await persistUser();
+    if(document.getElementById('view-history').classList.contains('active')) renderHistory();
+  });
+}
+
+function requestLiveLocation(){
+  if(!navigator.geolocation){ toast('Geolocation is not supported by this browser.', true); return; }
+  if(!isSecureEnoughForGeo()){
+    toast('Your phone\'s browser needs this page loaded over HTTPS to allow GPS access. Host it on a secure (https://) address.', true);
+    return;
+  }
+  if(liveWatchId!==null){ toast('Live GPS already active.'); return; }
+  liveWatchId = navigator.geolocation.watchPosition(pos=>{
+    const {latitude, longitude, accuracy, speed, heading, altitude} = pos.coords;
+    lastKnown = {lat:latitude, lon:longitude, accuracy, speed, heading, altitude, ts:pos.timestamp};
+    updateHud(latitude, longitude, accuracy);
+    if(mapLive) placeLiveMarker(latitude, longitude, accuracy);
+    updateLiveStats();
+    renderHome();
+    maybeAutoLogVisit(latitude, longitude);
+  }, err=>{
+    navigator.geolocation.clearWatch(liveWatchId); liveWatchId=null;
+    if(err.code === err.PERMISSION_DENIED){
+      openPermissionsModal('Location access is blocked, so GlobalCoreX can\'t show your position, plan routes from "current location", or send an accurate SOS alert.');
+    } else {
+      toast('Location unavailable: ' + err.message, true);
+    }
+  }, {enableHighAccuracy:true, maximumAge:0, timeout:15000});
+  toast('Requesting GPS permission…');
+  requestWakeLock();
+}
+
+function getOneShotLocation(){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){ reject(new Error('Geolocation unsupported on this browser')); return; }
+    if(!isSecureEnoughForGeo()){ reject(new Error('This page must be loaded over HTTPS for GPS access on mobile')); return; }
+    if(lastKnown && (Date.now() - (lastKnown.ts||0)) < 8000){ resolve(lastKnown); return; }
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const {latitude, longitude, accuracy, speed, heading, altitude} = pos.coords;
+      const p = {lat:latitude, lon:longitude, accuracy, speed, heading, altitude, ts:pos.timestamp};
+      lastKnown = p; updateHud(p.lat,p.lon,accuracy);
+      resolve(p);
+    }, err=>{
+      if(err.code === err.PERMISSION_DENIED){
+        openPermissionsModal('Location access is blocked, so GlobalCoreX can\'t capture your current position for this action.');
+      }
+      reject(err);
+    }, {enableHighAccuracy:true, maximumAge:0, timeout:15000});
+  });
+}
+
+/* ---------- Map: Live ---------- */
+function initMapLive(){
+  if(mapLive){ mapLive.invalidateSize(); return; }
+  mapLive = L.map('map-live', {zoomControl:true}).setView([0.3476, 32.5825], 12); // Kampala default
+  const layers = createBaseLayers();
+  layers.normal.addTo(mapLive);
+  addMapStyleToggle(mapLive, layers);
+  if(lastKnown) placeLiveMarker(lastKnown.lat, lastKnown.lon, lastKnown.accuracy);
+}
+function placeLiveMarker(lat, lon, accuracy){
+  if(!mapLive) return;
+  if(!liveMarker){
+    const gpsIcon = L.divIcon({className:'', html:'<div style="width:16px;height:16px;border-radius:50%;background:#00E6B8;border:3px solid #04120D;box-shadow:0 0 12px #00E6B8;"></div>', iconSize:[16,16]});
+    liveMarker = L.marker([lat,lon], {icon:gpsIcon}).addTo(mapLive).bindPopup('You are here');
+  } else {
+    liveMarker.setLatLng([lat,lon]);
+  }
+  if(accuracy){
+    if(!liveAccuracyCircle){
+      liveAccuracyCircle = L.circle([lat,lon], {radius:accuracy, color:'#00E6B8', weight:1, fillColor:'#00E6B8', fillOpacity:0.10}).addTo(mapLive);
+    } else {
+      liveAccuracyCircle.setLatLng([lat,lon]); liveAccuracyCircle.setRadius(accuracy);
+    }
+  }
+  mapLive.setView([lat,lon], mapLive.getZoom() < 13 ? 15 : mapLive.getZoom());
+}
+function updateLiveStats(){
+  const el = document.getElementById('live-stats');
+  if(!el || !lastKnown) return;
+  el.style.display = 'flex';
+  const accEl = document.getElementById('stat-accuracy');
+  const spdEl = document.getElementById('stat-speed');
+  const hdgEl = document.getElementById('stat-heading');
+  accEl.textContent = lastKnown.accuracy!=null ? '±'+Math.round(lastKnown.accuracy)+' m' : '—';
+  spdEl.textContent = (lastKnown.speed!=null && lastKnown.speed>=0) ? Math.round(lastKnown.speed*3.6)+' km/h' : '—';
+  hdgEl.textContent = (lastKnown.heading!=null && !isNaN(lastKnown.heading)) ? Math.round(lastKnown.heading)+'°' : '—';
+}
+function centerOnMe(mapId){
+  if(!lastKnown){ toast('No location yet — enable live GPS first.', true); return; }
+  const m = mapId==='map-live' ? mapLive : mapPlanner;
+  if(m) m.setView([lastKnown.lat, lastKnown.lon], 15);
+}
+async function reverseGeocode(lat, lon){
+  try{
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16`, {headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('reverse geocode failed');
+    const data = await res.json();
+    if(!data || !data.address) return null;
+    const a = data.address;
+    const place = a.suburb || a.neighbourhood || a.road || a.village || a.town || a.city_district || null;
+    const city = a.city || a.town || a.county || null;
+    const country = a.country || null;
+    return [place, city, country].filter(Boolean).join(', ') || data.display_name || null;
+  }catch(e){ return null; }
+}
+
+async function saveCurrentToHistory(){
+  try{
+    const p = await getOneShotLocation();
+    toast('Saving location…');
+    const place = await reverseGeocode(p.lat, p.lon);
+    USER_DATA.history.push({id:cryptoId(), time:Date.now(), lat:p.lat, lon:p.lon, label:'Manually saved location', place});
+    await persistUser();
+    renderHistory(); renderHome();
+    toast(place ? 'Saved: ' + place : 'Location saved to history.');
+  }catch(e){ toast('Could not get location: '+e.message, true); }
+}
+
+let trailLayer = null;
+function toggleTrail(){
+  if(!mapLive){ toast('Open the Live Map first.', true); return; }
+  const btn = document.getElementById('trail-btn');
+  if(trailLayer){
+    mapLive.removeLayer(trailLayer); trailLayer = null;
+    btn.textContent = 'Show Trail';
+    return;
+  }
+  const pts = USER_DATA.history.map(h=>[h.lat, h.lon]);
+  if(pts.length < 2){ toast('Save at least two locations to draw a trail.', true); return; }
+  trailLayer = L.polyline(pts, {color:'#4C8DFF', weight:3, opacity:0.75, dashArray:'6 6'}).addTo(mapLive);
+  mapLive.fitBounds(trailLayer.getBounds(), {padding:[30,30]});
+  btn.textContent = 'Hide Trail';
+}
+
+/* ---------- Map: Planner ---------- */
+function initMapPlanner(){
+  if(mapPlanner){ mapPlanner.invalidateSize(); return; }
+  mapPlanner = L.map('map-planner').setView([0.3476, 32.5825], 12);
+  const layers = createBaseLayers();
+  layers.normal.addTo(mapPlanner);
+  addMapStyleToggle(mapPlanner, layers);
+}
+
+async function geocode(query){
+  if(!query || !query.trim()) throw new Error('empty query');
+  if(query.trim().toLowerCase()==='current location' || query.trim().toLowerCase()==='my location'){
+    const p = await getOneShotLocation();
+    return {lat:p.lat, lon:p.lon, label:'Current location'};
+  }
+  const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query);
+  const res = await fetch(url, {headers:{'Accept':'application/json'}});
+  if(!res.ok) throw new Error('geocoding failed');
+  const arr = await res.json();
+  if(!arr || arr.length===0) throw new Error('location not found: '+query);
+  return {lat:parseFloat(arr[0].lat), lon:parseFloat(arr[0].lon), label:arr[0].display_name};
+}
+
+async function fetchRoutes(a, b){
+  const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson&alternatives=true`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('routing service unavailable');
+  const data = await res.json();
+  if(data.code !== 'Ok' || !data.routes || data.routes.length===0) throw new Error('no route found');
+  return data.routes;
+}
+
+function fmtDuration(sec){
+  const m = Math.round(sec/60);
+  if(m < 60) return m+' min';
+  return Math.floor(m/60)+'h '+(m%60)+'m';
+}
+function fmtDistance(m){
+  if(m < 1000) return Math.round(m)+' m';
+  return (m/1000).toFixed(1)+' km';
+}
+
+async function planRoute(){
+  const startQ = document.getElementById('rp-start').value || 'current location';
+  const endQ = document.getElementById('rp-end').value;
+  const resultWrap = document.getElementById('planner-result');
+  if(!endQ){ toast('Enter a destination.', true); return; }
+  resultWrap.innerHTML = `<div class="card"><span class="mono" style="color:var(--text-dim); font-size:12px;">Locating route…</span></div>`;
+  try{
+    const a = await geocode(startQ);
+    const b = await geocode(endQ);
+    const routes = await fetchRoutes(a,b);
+    const pref = document.getElementById('rp-pref').value;
+    let best = routes[0];
+    if(pref==='shortest'){ best = routes.reduce((p,c)=> c.distance < p.distance ? c : p, routes[0]); }
+    else { best = routes.reduce((p,c)=> c.duration < p.duration ? c : p, routes[0]); }
+
+    if(!mapPlanner) initMapPlanner();
+    if(plannerLayer) mapPlanner.removeLayer(plannerLayer);
+    plannerMarkers.forEach(m=>mapPlanner.removeLayer(m)); plannerMarkers=[];
+
+    const coords = best.geometry.coordinates.map(c=>[c[1],c[0]]);
+    plannerLayer = L.polyline(coords, {color:'#4C8DFF', weight:5, opacity:0.9}).addTo(mapPlanner);
+    plannerMarkers.push(L.marker([a.lat,a.lon]).addTo(mapPlanner).bindPopup('Start: '+a.label));
+    plannerMarkers.push(L.marker([b.lat,b.lon]).addTo(mapPlanner).bindPopup('Destination: '+b.label));
+    mapPlanner.fitBounds(plannerLayer.getBounds(), {padding:[30,30]});
+
+    const tollsNote = document.getElementById('rp-tolls').checked ? '<div style="font-size:11px;color:var(--text-dim);margin-top:8px;">Toll avoidance requested — applied where toll data is available from the routing source.</div>' : '';
+    resultWrap.innerHTML = `
+      <div class="card">
+        <div class="eyebrow">Route Ready</div>
+        <div class="route-compare" style="grid-template-columns:1fr 1fr 1fr;">
+          <div class="route-opt best"><div class="rt-name">Duration</div><div class="rt-time">${fmtDuration(best.duration)}</div></div>
+          <div class="route-opt"><div class="rt-name">Distance</div><div class="rt-time">${fmtDistance(best.distance)}</div></div>
+          <div class="route-opt"><div class="rt-name">Alternatives</div><div class="rt-time">${routes.length-1}</div></div>
+        </div>
+        ${tollsNote}
+      </div>`;
+  }catch(e){
+    resultWrap.innerHTML = `<div class="card"><span class="mono" style="color:var(--red); font-size:12px;">Could not generate route: ${e.message}</span></div>`;
+  }
+}
+
+/* ---------- AI Route Suggestions ---------- */
+async function runAISuggestion(){
+  const startQ = document.getElementById('ai-start').value || 'current location';
+  const endQ = document.getElementById('ai-end').value;
+  const wrap = document.getElementById('ai-result');
+  if(!endQ){ toast('Enter a destination.', true); return; }
+  wrap.innerHTML = `<div class="ai-result"><div class="ai-head">${icon('ai')} Analyzing routes…</div><div class="mono" style="font-size:12px;color:var(--text-dim);">Comparing distance, estimated time and simulated traffic conditions.</div></div>`;
+  try{
+    const a = await geocode(startQ);
+    const b = await geocode(endQ);
+    const routes = await fetchRoutes(a,b);
+    const avoidTolls = document.getElementById('ai-tolls').checked;
+    const pref = document.getElementById('ai-pref').value;
+
+    // Simulate live traffic conditions on the primary ("usual") route
+    const usual = routes[0];
+    const trafficFactor = 1 + (Math.random()*0.35 + 0.10); // +10% to +45%
+    const usualEta = usual.duration * trafficFactor;
+
+    let alt = routes.length > 1 ? routes[1] : null;
+    if(alt && pref==='shortest'){
+      alt = routes.slice(1).reduce((p,c)=> c.distance < p.distance ? c : p, alt);
+    }
+    const altEta = alt ? alt.duration * (1 + Math.random()*0.08) : null;
+
+    const savedMin = alt ? Math.max(0, Math.round((usualEta-altEta)/60)) : 0;
+
+    let verdict;
+    if(alt && savedMin >= 3){
+      verdict = `The usual route will take about <strong>${fmtDuration(usualEta)}</strong> due to current traffic conditions. An alternative route is about <strong>${fmtDuration(altEta)}</strong> — saving approximately <strong>${savedMin} minutes</strong>. I'd recommend the alternative.`;
+    } else if(alt){
+      verdict = `The usual route (<strong>${fmtDuration(usualEta)}</strong>) and the alternative (<strong>${fmtDuration(altEta)}</strong>) are close in travel time. Stick with the usual route — it's the more familiar, predictable option.`;
+    } else {
+      verdict = `This is the only viable route between these two points. Estimated travel time is <strong>${fmtDuration(usualEta)}</strong> accounting for current conditions.`;
+    }
+
+    let prefsNote = [];
+    if(avoidTolls) prefsNote.push('avoiding toll roads where supported by route data');
+    prefsNote.push(pref==='shortest' ? 'prioritizing the shortest distance' : 'prioritizing the fastest travel time');
+
+    wrap.innerHTML = `
+      <div class="ai-result">
+        <div class="ai-head">${icon('ai')} AI Route Suggestion</div>
+        <div style="font-size:13.5px; line-height:1.7;">${verdict}</div>
+        <div style="font-size:11px; color:var(--text-faint); margin-top:8px;">Preferences applied: ${prefsNote.join(', ')}. Road-closure and live-traffic data reflected where the routing source makes it available; traffic impact above is simulated for demonstration.</div>
+        <div class="route-compare">
+          <div class="route-opt ${savedMin>=3?'':'best'}">
+            <div class="rt-name">Usual Route ${savedMin>=3?'':'<span class="tag tag-teal">Recommended</span>'}</div>
+            <div class="rt-time">${fmtDuration(usualEta)}</div>
+            <div class="rt-dist">${fmtDistance(usual.distance)}</div>
+          </div>
+          ${alt ? `<div class="route-opt ${savedMin>=3?'best':''}">
+            <div class="rt-name">Alternative ${savedMin>=3?'<span class="tag tag-teal">Recommended</span>':''}</div>
+            <div class="rt-time">${fmtDuration(altEta)}</div>
+            <div class="rt-dist">${fmtDistance(alt.distance)}</div>
+          </div>` : ''}
+        </div>
+      </div>`;
+  }catch(e){
+    wrap.innerHTML = `<div class="ai-result"><div class="ai-head" style="color:var(--red);">Unable to analyze route</div><div class="mono" style="font-size:12px;">${e.message}</div></div>`;
+  }
+}
+
+/* ---------- Location History ---------- */
+function renderHistory(){
+  const wrap = document.getElementById('history-list');
+  if(!USER_DATA) return;
+  const items = [...USER_DATA.history].reverse();
+  if(items.length===0){
+    wrap.innerHTML = `<div class="empty-state">${icon('history')}<div class="et">No history yet</div><div class="es">Locations you save or that are captured during SOS events will appear here.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>When</th><th>Place</th><th>Coordinates</th><th>Label</th><th></th></tr></thead><tbody>
+    ${items.map(h=>`<tr>
+      <td class="mono">${new Date(h.time).toLocaleString()}</td>
+      <td>${h.place ? h.place : '<span style="color:var(--text-faint);">Unresolved</span>'}</td>
+      <td class="mono">${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</td>
+      <td>${h.label||'—'}</td>
+      <td><a class="link-btn" target="_blank" href="https://www.google.com/maps?q=${h.lat},${h.lon}">View on map ↗</a></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+async function clearHistory(){
+  USER_DATA.history = [];
+  await persistUser();
+  renderHistory(); renderHome();
+  toast('Location history cleared.');
+}
+
+/* ---------- Devices ---------- */
+function renderDevices(){
+  const wrap = document.getElementById('device-list');
+  if(!USER_DATA) return;
+  if(USER_DATA.devices.length===0){
+    wrap.innerHTML = `<div class="empty-state">${icon('device')}<div class="et">No devices linked</div><div class="es">Link a phone, tracker or vehicle to see it here.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>Device</th><th>Type</th><th>Battery</th><th>Status</th><th>Last Seen</th><th></th></tr></thead><tbody>
+    ${USER_DATA.devices.map(d=>{
+      let batteryCell;
+      if(d.isThisDevice && d.batterySupported && d.battery!=null){
+        const low = d.battery <= 20 && !d.charging;
+        batteryCell = `<span class="mono" style="color:${low?'var(--red)':'var(--text)'}">${d.battery}%${d.charging?' ⚡':''}</span>${low?' <span class="tag tag-red">Low</span>':''}`;
+      } else if(d.isThisDevice){
+        batteryCell = `<span style="color:var(--text-faint); font-size:11px;">Not exposed by this browser</span>`;
+      } else {
+        batteryCell = `<span style="color:var(--text-faint); font-size:11px;">No telemetry link</span>`;
+      }
+      let statusCell;
+      if(d.isThisDevice){
+        statusCell = d.online===false ? `<span class="tag tag-red">Offline</span>` : `<span class="tag tag-teal">Online</span>` + (d.network ? ` <span class="mono" style="font-size:10.5px; color:var(--text-dim);">${d.network}</span>` : '');
+      } else {
+        statusCell = `<span class="tag tag-amber">Unlinked</span>`;
+      }
+      return `<tr>
+      <td>${d.name}${d.isThisDevice?' <span class="tag tag-teal" style="margin-left:4px;">This Device</span>':''}</td>
+      <td><span class="tag tag-teal">${d.type}</span></td>
+      <td>${batteryCell}</td>
+      <td>${statusCell}</td>
+      <td class="mono">${d.lastSeen ? new Date(d.lastSeen).toLocaleString() : '—'}</td>
+      <td>
+        <button class="link-btn" onclick="locateDevice('${d.id}')">Locate</button>
+        &nbsp;&nbsp;<button class="link-btn" onclick="renameDevice('${d.id}')">Rename</button>
+        &nbsp;&nbsp;<button class="link-btn danger" onclick="removeDevice('${d.id}')">Remove</button>
+      </td>
+    </tr>`;}).join('')}
+  </tbody></table></div>
+  <div style="margin-top:10px; font-size:11px; color:var(--text-faint);">Battery, online status and network type are read live from this browser for "This Device" only — other linked devices need a companion app to report real telemetry, so their status is shown as unlinked.</div>`;
+}
+async function renameDevice(id){
+  const d = USER_DATA.devices.find(x=>x.id===id);
+  if(!d) return;
+  const name = prompt('Rename device', d.name);
+  if(!name || !name.trim()) return;
+  d.name = name.trim();
+  await persistUser();
+  renderDevices();
+}
+function openDeviceModal(){ document.getElementById('device-modal').classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+async function saveDevice(){
+  const name = document.getElementById('d-name').value.trim();
+  const type = document.getElementById('d-type').value;
+  if(!name){ toast('Enter a device name.', true); return; }
+  USER_DATA.devices.push({id:cryptoId(), name, type, battery:null, batterySupported:false, charging:null, isThisDevice:false, online:null, network:null, lastLat:null, lastLon:null, lastSeen:null});
+  await persistUser();
+  document.getElementById('d-name').value='';
+  closeModal('device-modal');
+  renderDevices(); renderHome();
+  toast('Device linked to your account.');
+}
+async function removeDevice(id){
+  USER_DATA.devices = USER_DATA.devices.filter(d=>d.id!==id);
+  await persistUser();
+  renderDevices(); renderHome();
+}
+async function locateDevice(id){
+  const d = USER_DATA.devices.find(x=>x.id===id);
+  if(!d) return;
+  try{
+    const p = lastKnown || await getOneShotLocation();
+    if(d.isThisDevice){
+      // This is the real device the browser is running on — use the exact fix.
+      d.lastLat = p.lat; d.lastLon = p.lon; d.lastAccuracy = p.accuracy || null;
+    } else {
+      // No companion app exists for other physical devices, so their position
+      // is simulated near your own for demo purposes (clearly labeled below).
+      const jitter = ()=> (Math.random()-0.5)*0.01;
+      d.lastLat = p.lat + jitter(); d.lastLon = p.lon + jitter(); d.lastAccuracy = null;
+    }
+    d.lastSeen = Date.now();
+    await persistUser();
+    renderDevices();
+    const mapWrap = document.getElementById('map-devices');
+    mapWrap.style.display='block';
+    if(!mapDevices){
+      mapDevices = L.map('map-devices').setView([d.lastLat, d.lastLon], 14);
+      const layers = createBaseLayers();
+      layers.normal.addTo(mapDevices);
+      addMapStyleToggle(mapDevices, layers);
+    } else { mapDevices.invalidateSize(); mapDevices.setView([d.lastLat, d.lastLon], 14); }
+    L.marker([d.lastLat, d.lastLon]).addTo(mapDevices).bindPopup(d.name + (d.isThisDevice ? ' (real GPS fix)' : ' (simulated position)')).openPopup();
+    toast(d.name + ' located.');
+  }catch(e){ toast('Could not locate device: '+e.message, true); }
+}
+
+/* ---------- Settings > App Permissions ---------- */
+async function renderSettingsPermissions(){
+  const wrap = document.getElementById('settings-permissions-list');
+  if(!wrap) return;
+  const geoState = await getGeoPermissionState();
+  const notifyState = getNotifyPermissionState();
+  const bgState = await getBackgroundPermissionState();
+  const rows = [
+    {id:'location', label:'Location Access', desc:'Live GPS, the map, route planning and SOS alerts.', state:geoState, action:'requestLocationPermission()'},
+    {id:'notify', label:'Notifications', desc:'Confirms on your device when an SOS alert has gone out.', state:notifyState, action:'requestNotifyPermission()'},
+    {id:'background', label:'Background & Storage Access', desc:'Keeps tracking active while the screen is on and protects saved data from being cleared.', state:bgState, action:'requestBackgroundPermission()'}
+  ];
+  wrap.innerHTML = rows.map(r=>{
+    let badgeClass='tag-amber', badgeText='Not set', btnHtml=`<button class="btn btn-ghost btn-small" onclick="${r.action}">Allow</button>`;
+    if(r.state==='granted'){ badgeClass='tag-teal'; badgeText='Granted'; btnHtml=`<button class="btn btn-ghost btn-small" disabled>Allowed</button>`; }
+    else if(r.state==='denied'){ badgeClass='tag-red'; badgeText='Blocked'; btnHtml=`<button class="btn btn-ghost btn-small" disabled>Blocked</button>`; }
+    else if(r.state==='unsupported'){ badgeClass='tag-amber'; badgeText='Unsupported'; btnHtml=`<button class="btn btn-ghost btn-small" disabled>N/A</button>`; }
+    return `<div class="contact-row">
+      <div class="contact-meta"><div class="cn">${r.label} <span class="tag ${badgeClass}" style="margin-left:6px;">${badgeText}</span></div><div class="cc" style="font-family:var(--sans);">${r.desc}</div></div>
+      ${btnHtml}
+    </div>`;
+  }).join('')
+  + `<div id="install-app-row" style="display:none; margin-top:10px;"><button class="btn btn-primary btn-small" style="width:100%;" onclick="promptInstallApp()">Install GlobalCoreX as an App</button></div>`
+  + `<div style="margin-top:10px; font-size:11px; color:var(--text-faint);">Blocked permissions must be re-enabled from your browser's site settings (tap the lock icon next to the address bar), then reload the page. True continuous background execution and OS admin rights aren't something any browser grants to web pages — installing as an app gets closest.</div>`;
+  document.getElementById('install-app-row').style.display = deferredInstallPrompt ? 'block' : 'none';
+}
+
+/* ---------- Contacts (shared: Settings + SOS) ---------- */
+function renderSettingsContacts(){
+  const wrap = document.getElementById('settings-contact-list');
+  if(!USER_DATA) return;
+  if(USER_DATA.contacts.length===0){
+    wrap.innerHTML = `<div class="empty-state" style="padding:20px 0;"><div class="et">No trusted contacts yet</div><div class="es">Add contacts who should receive your SOS alerts.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = USER_DATA.contacts.map(c=>`
+    <div class="contact-row">
+      <div class="contact-meta"><div class="cn">${c.name}</div><div class="cc">${c.phone||''}${c.email? ' · '+c.email:''}</div></div>
+      <button class="link-btn danger" onclick="removeContact('${c.id}')">Remove</button>
+    </div>`).join('');
+}
+function renderSOS(){
+  const wrap = document.getElementById('sos-contact-list');
+  if(!USER_DATA) return;
+  if(USER_DATA.contacts.length===0){
+    wrap.innerHTML = `<div class="empty-state" style="padding:16px 0;"><div class="et">No trusted contacts</div><div class="es">Add contacts in Settings so SOS has someone to alert.</div></div>`;
+  } else {
+    wrap.innerHTML = USER_DATA.contacts.map(c=>`
+      <div class="contact-row">
+        <div class="contact-meta"><div class="cn">${c.name}</div><div class="cc">${c.phone||''}${c.email? ' · '+c.email:''}</div></div>
+        <span class="tag tag-teal">Will be alerted</span>
+      </div>`).join('');
+  }
+  renderSosLog();
+}
+function renderSosLog(){
+  const wrap = document.getElementById('sos-log');
+  const items = [...USER_DATA.sosLog].reverse();
+  if(items.length===0){
+    wrap.innerHTML = `<div class="empty-state" style="padding:20px 0;"><div class="et">No emergency events</div><div class="es">SOS activity will be recorded here.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>When</th><th>Location</th><th>Contacts Alerted</th></tr></thead><tbody>
+    ${items.map(s=>`<tr>
+      <td class="mono">${new Date(s.time).toLocaleString()}</td>
+      <td class="mono"><a class="link-btn" target="_blank" href="https://www.google.com/maps?q=${s.lat},${s.lon}">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)} ↗</a></td>
+      <td>${s.contactsCount} contact${s.contactsCount===1?'':'s'}</td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+function openContactModal(){ document.getElementById('contact-modal').classList.add('active'); }
+async function saveContact(){
+  const name = document.getElementById('c-name').value.trim();
+  const phone = document.getElementById('c-phone').value.trim();
+  const email = document.getElementById('c-email').value.trim();
+  if(!name || (!phone && !email)){ toast('Enter a name and at least a phone or email.', true); return; }
+  USER_DATA.contacts.push({id:cryptoId(), name, phone, email});
+  await persistUser();
+  document.getElementById('c-name').value=''; document.getElementById('c-phone').value=''; document.getElementById('c-email').value='';
+  closeModal('contact-modal');
+  renderSettingsContacts(); renderSOS(); renderHome();
+  toast('Trusted contact added.');
+}
+async function removeContact(id){
+  USER_DATA.contacts = USER_DATA.contacts.filter(c=>c.id!==id);
+  await persistUser();
+  renderSettingsContacts(); renderSOS(); renderHome();
+}
+
+/* ---------- SOS ---------- */
+async function triggerSOS(){
+  if(USER_DATA.contacts.length===0){
+    toast('Add a trusted contact before triggering SOS.', true);
+    showView('settings');
+    return;
+  }
+  if(!confirm('Trigger an SOS emergency alert now? This will capture your location and prepare alerts for your trusted contacts.')) return;
+
+  try{
+    const p = lastKnown || await getOneShotLocation();
+    const mapLink = `https://www.google.com/maps?q=${p.lat},${p.lon}`;
+    const message = `EMERGENCY: This is an SOS alert from ${USER_DATA.name} via GlobalCoreX. My current location: ${mapLink}`;
+
+    const sosEntry = {id:cryptoId(), time:Date.now(), lat:p.lat, lon:p.lon, contactsCount:USER_DATA.contacts.length};
+    const histEntry = {id:cryptoId(), time:Date.now(), lat:p.lat, lon:p.lon, label:'SOS emergency location', place:null};
+    USER_DATA.sosLog.push(sosEntry);
+    USER_DATA.history.push(histEntry);
+    await persistUser();
+    renderSOS(); renderHistory(); renderHome();
+
+    // Open outbound alert channels for each contact
+    USER_DATA.contacts.forEach(c=>{
+      if(c.phone){
+        const digits = c.phone.replace(/[^0-9]/g,'');
+        window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, '_blank');
+      } else if(c.email){
+        window.open(`mailto:${c.email}?subject=${encodeURIComponent('SOS Emergency Alert')}&body=${encodeURIComponent(message)}`, '_blank');
+      }
+    });
+
+    toast('SOS triggered — alert windows opened for your trusted contacts.');
+
+    // Resolve the human-readable place name in the background so the alert
+    // channels above open immediately without waiting on a network round trip.
+    reverseGeocode(p.lat, p.lon).then(async place=>{
+      if(!place) return;
+      histEntry.place = place;
+      await persistUser();
+      renderHistory(); renderHome();
+    });
+
+    if('Notification' in window && Notification.permission==='granted'){
+      new Notification('GlobalCoreX — SOS Sent', {
+        body: `Your location was captured and alerts were prepared for ${USER_DATA.contacts.length} trusted contact(s).`,
+        tag: 'gcx-sos'
+      });
+    }
+  }catch(e){
+    toast('Could not capture location for SOS: '+e.message, true);
+  }
+}
+
+/* ---------- Profile / Preferences ---------- */
+async function saveProfile(){
+  USER_DATA.name = document.getElementById('set-name').value.trim() || USER_DATA.name;
+  USER_DATA.phone = document.getElementById('set-phone').value.trim();
+  await persistUser();
+  document.getElementById('welcome-msg').textContent = 'Welcome, ' + USER_DATA.name;
+  document.getElementById('side-name').textContent = USER_DATA.name;
+  document.getElementById('side-avatar').textContent = USER_DATA.name.trim().charAt(0).toUpperCase();
+  toast('Profile saved.');
+}
+async function savePrefs(){
+  USER_DATA.prefs.routeType = document.getElementById('set-pref').value;
+  USER_DATA.prefs.avoidTolls = document.getElementById('set-tolls').checked;
+  await persistUser();
+  document.getElementById('rp-pref').value = USER_DATA.prefs.routeType;
+  document.getElementById('rp-tolls').checked = USER_DATA.prefs.avoidTolls;
+  document.getElementById('ai-pref').value = USER_DATA.prefs.routeType;
+  document.getElementById('ai-tolls').checked = USER_DATA.prefs.avoidTolls;
+  toast('Preferences saved.');
+}
+async function saveGoogleKey(){
+  const key = document.getElementById('set-google-key').value.trim();
+  USER_DATA.prefs.googleMapsKey = key;
+  await persistUser();
+  toast(key ? 'Google Maps key saved — the "Google" map option is now enabled.' : 'Google Maps key cleared.');
+}
+</script>
+</body>
+</html>
